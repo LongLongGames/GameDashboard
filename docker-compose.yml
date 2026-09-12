@@ -1,0 +1,61 @@
+# 项目名可用：docker compose -p gamedashboard up
+# 容器内统一 8080；宿主机 11090→8080
+
+name: gamedashboard
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gamedashboard
+      POSTGRES_USER: dashboard
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dashboard_dev_pwd}
+    ports:
+      - "11091:5432"
+    volumes:
+      - dashboard-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dashboard -d gamedashboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: src/GameDashboard.Api/Dockerfile
+    command: ["--migrate"]
+    environment:
+      ConnectionStrings__PostgreSQL: "Host=postgres;Port=5432;Database=gamedashboard;Username=dashboard;Password=${POSTGRES_PASSWORD:-dashboard_dev_pwd}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: src/GameDashboard.Api/Dockerfile
+    ports:
+      - "11090:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      # 禁止再被 appsettings Urls 盖掉；以环境变量为准
+      ConnectionStrings__PostgreSQL: "Host=postgres;Port=5432;Database=gamedashboard;Username=dashboard;Password=${POSTGRES_PASSWORD:-dashboard_dev_pwd}"
+      Games__Match3__BaseUrl: ${MATCH3_BASE_URL:-http://host.docker.internal:13180}
+      Games__Match3__DebugJwt: ${MATCH3_DEBUG_JWT:-}
+      MP__BaseUrl: ${MP_BASE_URL:-http://host.docker.internal:11080}
+      BugReport__BaseUrl: ${BUGREPORT_BASE_URL:-mock}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  dashboard-pgdata:

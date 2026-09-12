@@ -1,9 +1,6 @@
 <Solution>
-  <Folder Name="/samples/">
-    <Project Path="samples/SampleDashboard/SampleDashboard.csproj" />
-  </Folder>
-  <Folder Name="/src/">
-    <Project Path="src/GameDashboard.Core/GameDashboard.Core.csproj" />
-    <Project Path="src/GameDashboard.UI/GameDashboard.UI.csproj" />
-  </Folder>
+  <Project Path="src/GameDashboard.Api/GameDashboard.Api.csproj" />
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
 </Solution>

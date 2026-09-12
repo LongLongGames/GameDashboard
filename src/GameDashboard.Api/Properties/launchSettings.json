@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "GameDashboard.Api": {
+      "commandName": "Project",
+      "applicationUrl": "http://0.0.0.0:11090",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
