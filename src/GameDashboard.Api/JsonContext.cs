@@ -33,6 +33,10 @@ namespace GameDashboard.Api;
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(GameUpsertRequest))]
 [JsonSerializable(typeof(SetActiveRequest))]
+[JsonSerializable(typeof(ReportSummary))]
+[JsonSerializable(typeof(List<ReportSummary>))]
+[JsonSerializable(typeof(ReportListResponse))]
+[JsonSerializable(typeof(StatusUpdateRequest))]
 internal partial class AppJsonContext : JsonSerializerContext;
 
 public sealed class GameUpsertRequest

@@ -150,25 +150,72 @@ public sealed class GameAdminClient(GameRepo games, IHttpClientFactory http, ICo
         catch (Exception ex) { return (false, ex.Message); }
     }
 
-    public async Task<List<BugItem>> ListBugsAsync(string? gameId, string? status)
+    /// <summary>
+    /// 调 BugReport GET /api/v1/reports（projectId = 游戏 game_id）。
+    /// </summary>
+    public async Task<ReportListResponse> ListReportsAsync(string? projectId, string? status, int page = 1, int pageSize = 50)
     {
         var baseUrl = config["BugReport:BaseUrl"];
         if (string.IsNullOrEmpty(baseUrl) || baseUrl == "mock")
         {
-            return
-            [
-                new("bug-001", "登录闪退", "Open", "match3", "playerA", DateTime.UtcNow.AddDays(-2), "联调占位"),
-                new("bug-002", "体力异常", "InProgress", "match3", "playerB", DateTime.UtcNow.AddDays(-1), "联调占位")
-            ];
+            return new ReportListResponse(
+                [
+                    new("00000000-0000-0000-0000-000000000001", projectId ?? "match3", "Error",
+                        "（mock）未配置 BugReport:BaseUrl", "Open", DateTime.UtcNow.AddDays(-1), DateTime.UtcNow.AddDays(-1), "0.0.0")
+                ], 1, pageSize, 1);
         }
+
         try
         {
             var c = http.CreateClient();
-            c.DefaultRequestHeaders.TryAddWithoutValidation("X-Admin-Api-Key", config["BugReport:AdminKey"]);
-            var raw = await c.GetStringAsync($"{baseUrl.TrimEnd('/')}/admin/v1/bugs?game_id={gameId}&status={status}");
-            return JsonSerializer.Deserialize(raw, AppJsonContext.Default.ListBugItem) ?? [];
+            c.Timeout = TimeSpan.FromSeconds(15);
+            var adminKey = config["BugReport:AdminKey"];
+            if (!string.IsNullOrEmpty(adminKey) && adminKey != "replace-me")
+                c.DefaultRequestHeaders.TryAddWithoutValidation("X-Admin-Api-Key", adminKey);
+
+            var qs = new List<string> { $"page={page}", $"pageSize={pageSize}" };
+            if (!string.IsNullOrWhiteSpace(projectId))
+                qs.Add($"projectId={Uri.EscapeDataString(projectId)}");
+            if (!string.IsNullOrWhiteSpace(status))
+                qs.Add($"status={Uri.EscapeDataString(status)}");
+
+            var url = $"{baseUrl.TrimEnd('/')}/api/v1/reports?{string.Join("&", qs)}";
+            var resp = await c.GetAsync(url);
+            var raw = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+            {
+                log.LogWarning("BugReport list failed {Status}: {Body}", (int)resp.StatusCode, raw);
+                return new ReportListResponse([], page, pageSize, 0);
+            }
+            return JsonSerializer.Deserialize(raw, AppJsonContext.Default.ReportListResponse)
+                   ?? new ReportListResponse([], page, pageSize, 0);
         }
-        catch { return []; }
+        catch (Exception ex)
+        {
+            log.LogWarning(ex, "BugReport list");
+            return new ReportListResponse([], page, pageSize, 0);
+        }
+    }
+
+    public async Task<(bool ok, string msg)> UpdateReportStatusAsync(string id, string status)
+    {
+        var baseUrl = config["BugReport:BaseUrl"];
+        if (string.IsNullOrEmpty(baseUrl) || baseUrl == "mock")
+            return (false, "BugReport 未配置");
+        try
+        {
+            var c = http.CreateClient();
+            var adminKey = config["BugReport:AdminKey"];
+            if (!string.IsNullOrEmpty(adminKey) && adminKey != "replace-me")
+                c.DefaultRequestHeaders.TryAddWithoutValidation("X-Admin-Api-Key", adminKey);
+            var json = "{\"status\":\"" + status + "\"}";
+            using var body = new StringContent(json, Encoding.UTF8);
+            body.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            var resp = await c.PatchAsync($"{baseUrl.TrimEnd('/')}/api/v1/reports/{id}/status", body);
+            var text = await resp.Content.ReadAsStringAsync();
+            return resp.IsSuccessStatusCode ? (true, "已更新") : (false, text);
+        }
+        catch (Exception ex) { return (false, ex.Message); }
     }
 
     static string Esc(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");

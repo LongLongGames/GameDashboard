@@ -47,7 +47,8 @@ services:
       Games__Match3__BaseUrl: ${MATCH3_BASE_URL:-http://host.docker.internal:13180}
       Games__Match3__DebugJwt: ${MATCH3_DEBUG_JWT:-}
       MP__BaseUrl: ${MP_BASE_URL:-http://host.docker.internal:11080}
-      BugReport__BaseUrl: ${BUGREPORT_BASE_URL:-mock}
+      BugReport__BaseUrl: ${BUGREPORT_BASE_URL:-http://host.docker.internal:12080}
+      BugReport__AdminKey: ${BUGREPORT_ADMIN_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

@@ -260,10 +260,20 @@ app.MapPost("/api/v1/mail/send", async (SendMailRequest body, SessionStore sessi
     return ok ? Results.Ok(new MsgResponse(msg)) : Results.BadRequest(new ErrorResponse(msg));
 });
 
-app.MapGet("/api/v1/bugs", async (string? gameId, string? status, SessionStore sessions, GameAdminClient client, HttpRequest req) =>
+app.MapGet("/api/v1/bugs", async (string? gameId, string? status, int? page, int? pageSize, SessionStore sessions, GameAdminClient client, HttpRequest req) =>
 {
     var s = TrySession(req, sessions); if (s is null) return Results.Unauthorized();
-    return Results.Ok(await client.ListBugsAsync(gameId, status));
+    // gameId 作为 BugReport projectId（与客户端上报 projectId 一致，通常等于 game_id）
+    var list = await client.ListReportsAsync(gameId, status, page ?? 1, pageSize ?? 50);
+    return Results.Ok(list);
+});
+
+app.MapPatch("/api/v1/bugs/{id}/status", async (string id, StatusUpdateRequest body, SessionStore sessions, GameAdminClient client, AuditRepo audit, HttpContext ctx) =>
+{
+    var s = TrySession(ctx.Request, sessions); if (s is null) return Results.Unauthorized();
+    var (ok, msg) = await client.UpdateReportStatusAsync(id, body.Status);
+    await audit.LogAsync(s.UserId, s.Username, "UpdateBugStatus", target: id, detail: body.Status, success: ok, error: ok ? null : msg);
+    return ok ? Results.Ok(new MsgResponse(msg)) : Results.BadRequest(new ErrorResponse(msg));
 });
 
 app.MapGet("/api/v1/audit", async (SessionStore sessions, AuditRepo audit, HttpRequest req) =>

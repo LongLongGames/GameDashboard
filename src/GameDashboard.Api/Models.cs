@@ -8,6 +8,25 @@ public record LeaderboardEntry(string MpAccountId, string? Nickname, long Score,
 public record HealthResult(bool Ok, string? Raw, string Message);
 public record BugItem(string Id, string Title, string Status, string? GameId, string? Reporter, DateTime CreatedAt, string? Detail);
 
+// BugReport service shapes (GET /api/v1/reports)
+public record ReportSummary(
+    string Id,
+    string ProjectId,
+    string Level,
+    string Message,
+    string Status,
+    DateTime OccurredAt,
+    DateTime CreatedAt,
+    string? AppVersion);
+
+public record ReportListResponse(
+    List<ReportSummary> Items,
+    int Page,
+    int PageSize,
+    int Total);
+
+public record StatusUpdateRequest(string Status);
+
 public record LoginRequest(string Username, string Password);
 public record LoginResponse(int UserId, string Username, bool MustChangePassword, string[] Roles, string Token);
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
