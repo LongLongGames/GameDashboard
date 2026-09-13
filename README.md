@@ -4,6 +4,8 @@
 
 对齐 [LongLongGames/.github](https://github.com/LongLongGames/.github) 与 BugReport/MP 镜像规范。
 
+![image](https://github.com/LongLongGames/GameDashboard/blob/main/assets/dashboard_theme.jpg)
+
 ## 结构
 
 ```
