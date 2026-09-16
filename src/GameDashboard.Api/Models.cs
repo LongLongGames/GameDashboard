@@ -31,7 +31,22 @@ public record LoginRequest(string Username, string Password);
 public record LoginResponse(int UserId, string Username, bool MustChangePassword, string[] Roles, string Token);
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 public record CreateUserRequest(string Username, string Password, string[] RoleNames, string[] GameIds);
-public record SendMailRequest(string GameId, string MpAccountId, string Title, string Body, string? ItemsJson);
+public record MailRewardItem(string ItemId, int Count);
+public record SendMailRequest(
+    string GameId,
+    string Title,
+    string Body,
+    string Mode,
+    string? MpAccountId,
+    string? TargetIdsText,
+    List<MailRewardItem>? Rewards,
+    string? SenderName,
+    int? ExpireHours);
+public record ItemCatalogResponse(List<ItemCatalogEntryDto> Items);
+public record ItemCatalogEntryDto(string Id, string Name, string? Icon);
+public record MailListResponse(List<MailListItemDto> Items, int Total, int Page, int PageSize);
+public record MailListItemDto(string Id, string ProjectId, string Title, int TargetCount, bool IsBroadcast, string? SenderName, string? CreatedAt);
+
 public record CurrencyRequest(string GameId, string MpAccountId, string Item, long Delta, string Reason);
 public record BanRequest(string GameId, string MpAccountId, string Reason);
 

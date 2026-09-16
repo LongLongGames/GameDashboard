@@ -35,6 +35,7 @@ builder.Services.AddScoped<UserRepo>();
 builder.Services.AddScoped<AuditRepo>();
 builder.Services.AddScoped<GameRepo>();
 builder.Services.AddScoped<GameAdminClient>();
+builder.Services.AddScoped<MailAdminClient>();
 builder.Services.AddHttpClient();
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
@@ -251,12 +252,92 @@ app.MapGet("/api/v1/players", async (string? gameId, string? query, SessionStore
     return Results.Ok(await client.SearchPlayersAsync(gameId, query));
 });
 
-app.MapPost("/api/v1/mail/send", async (SendMailRequest body, SessionStore sessions, GameAdminClient client, AuditRepo audit, HttpContext ctx) =>
+app.MapGet("/api/v1/mail/item-catalog", async (string? gameId, SessionStore sessions, MailAdminClient mail, HttpContext ctx) =>
 {
     var s = TrySession(ctx.Request, sessions); if (s is null) return Results.Unauthorized();
     if (!HasRole(s, "SuperAdmin", "GM", "Operator")) return Results.Forbid();
-    var (ok, msg) = await client.SendMailAsync(body.GameId, body.MpAccountId, body.Title, body.Body, body.ItemsJson);
-    await audit.LogAsync(s.UserId, s.Username, "SendMail", body.GameId, body.MpAccountId, body.Title, ok, ok ? null : msg);
+    var gid = string.IsNullOrWhiteSpace(gameId) ? "match3" : gameId.Trim();
+    var items = mail.GetItemCatalog(gid)
+        .Select(x => new ItemCatalogEntryDto(x.Id, x.Name, x.Icon))
+        .ToList();
+    return Results.Ok(new ItemCatalogResponse(items));
+});
+
+app.MapGet("/api/v1/mail/list", async (string? gameId, int? page, int? pageSize, SessionStore sessions, MailAdminClient mail, HttpContext ctx) =>
+{
+    var s = TrySession(ctx.Request, sessions); if (s is null) return Results.Unauthorized();
+    if (!HasRole(s, "SuperAdmin", "GM", "Operator")) return Results.Forbid();
+    var gid = string.IsNullOrWhiteSpace(gameId) ? "match3" : gameId.Trim();
+    var p = page is > 0 ? page.Value : 1;
+    var ps = pageSize is > 0 and <= 100 ? pageSize.Value : 20;
+    var (ok, msg, items, total) = await mail.ListAsync(gid, p, ps);
+    if (!ok) return Results.BadRequest(new ErrorResponse(msg));
+    var dto = items.Select(i => new MailListItemDto(i.Id, i.ProjectId, i.Title, i.TargetCount, i.IsBroadcast, i.SenderName, i.CreatedAt)).ToList();
+    return Results.Ok(new MailListResponse(dto, total, p, ps));
+});
+
+app.MapPost("/api/v1/mail/send", async (SendMailRequest body, SessionStore sessions, MailAdminClient mail, AuditRepo audit, HttpContext ctx) =>
+{
+    var s = TrySession(ctx.Request, sessions); if (s is null) return Results.Unauthorized();
+    if (!HasRole(s, "SuperAdmin", "GM", "Operator")) return Results.Forbid();
+
+    var gameId = string.IsNullOrWhiteSpace(body.GameId) ? "match3" : body.GameId.Trim();
+    var mode = (body.Mode ?? "single").Trim().ToLowerInvariant();
+    var broadcast = mode is "all" or "broadcast";
+
+    // 收件人
+    var targets = new List<string>();
+    if (!broadcast)
+    {
+        if (mode is "multi")
+        {
+            var text = body.TargetIdsText ?? "";
+            foreach (var part in text.Split(new[] { '\n', '\r', ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                if (!string.IsNullOrWhiteSpace(part)) targets.Add(part);
+        }
+        else if (!string.IsNullOrWhiteSpace(body.MpAccountId))
+        {
+            targets.Add(body.MpAccountId.Trim());
+        }
+        targets = targets.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (targets.Count == 0)
+            return Results.BadRequest(new ErrorResponse("请填写 mp_account_id，或切换为全服发放"));
+    }
+
+    // 奖励：必须落在配置表内
+    var rewards = new List<MailAttachmentDto>();
+    if (body.Rewards is { Count: > 0 })
+    {
+        foreach (var r in body.Rewards)
+        {
+            if (r is null || string.IsNullOrWhiteSpace(r.ItemId))
+                return Results.BadRequest(new ErrorResponse("奖励道具不能为空"));
+            if (r.Count < 1)
+                return Results.BadRequest(new ErrorResponse($"道具 {r.ItemId} 数量必须 ≥ 1"));
+            if (!mail.IsKnownItem(gameId, r.ItemId))
+                return Results.BadRequest(new ErrorResponse($"道具 Id「{r.ItemId}」不在配置表中，请从目录选择，避免错配"));
+            rewards.Add(new MailAttachmentDto(r.ItemId.Trim(), r.Count));
+        }
+    }
+
+    DateTimeOffset? expire = null;
+    if (body.ExpireHours is > 0)
+        expire = DateTimeOffset.UtcNow.AddHours(body.ExpireHours.Value);
+
+    var (ok, msg, mailId) = await mail.SendAsync(
+        gameId,
+        body.Title ?? "",
+        body.Body ?? "",
+        targets,
+        broadcast,
+        rewards,
+        body.SenderName,
+        expire);
+
+    var targetAudit = broadcast ? "ALL" : string.Join(",", targets.Take(5)) + (targets.Count > 5 ? "…" : "");
+    await audit.LogAsync(s.UserId, s.Username, "SendMail", gameId, targetAudit,
+        $"{body.Title}|rewards={rewards.Count}|broadcast={broadcast}", ok, ok ? null : msg);
+
     return ok ? Results.Ok(new MsgResponse(msg)) : Results.BadRequest(new ErrorResponse(msg));
 });
 

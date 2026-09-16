@@ -49,6 +49,8 @@ services:
       MP__BaseUrl: ${MP_BASE_URL:-http://host.docker.internal:11080}
       BugReport__BaseUrl: ${BUGREPORT_BASE_URL:-http://host.docker.internal:12080}
       BugReport__AdminKey: ${BUGREPORT_ADMIN_KEY:-}
+      Mail__BaseUrl: ${MAIL_BASE_URL:-http://host.docker.internal:12081}
+      Mail__AdminApiKey: ${MAIL_ADMIN_API_KEY:-mail-dev-admin-key}
     depends_on:
       postgres:
         condition: service_healthy
