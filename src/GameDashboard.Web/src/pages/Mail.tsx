@@ -134,7 +134,7 @@ export default function Mail() {
     <>
       <h1>GM 邮件</h1>
       <p className="muted">
-        直连 Mail 服务发信；奖励只能从配置表选择，避免策划错填道具 Id。全服发放走广播，玩家拉收件箱时懒分发。
+        直连 Mail 服务发信；奖励来自 config/match3/Item.json（Excel 导表产物），禁止手填 Id。全服=广播，玩家打开收件箱时懒分发。
       </p>
 
       <form className="card" onSubmit={send}>

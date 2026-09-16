@@ -26,7 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Config\" />
+    <!-- 仓库根 config/ 复制到输出，便于本地 dotnet run -->
+    <Content Include="..\..\config\**\*" Link="config\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+             Condition="Exists('..\..\config')" />
   </ItemGroup>
 
 </Project>

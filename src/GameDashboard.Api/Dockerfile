@@ -22,6 +22,8 @@ RUN dotnet publish GameDashboard.Api.csproj -c Release -r linux-x64 -o /app/publ
 FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-noble-chiseled
 WORKDIR /app
 COPY --from=build /app/publish .
+# 导表 JSON：config/{gameId}/Item.json
+COPY config/ ./config/
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 ENTRYPOINT ["./GameDashboard.Api"]

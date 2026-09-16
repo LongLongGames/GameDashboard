@@ -35,6 +35,7 @@ builder.Services.AddScoped<UserRepo>();
 builder.Services.AddScoped<AuditRepo>();
 builder.Services.AddScoped<GameRepo>();
 builder.Services.AddScoped<GameAdminClient>();
+builder.Services.AddSingleton<GameCatalog>();
 builder.Services.AddScoped<MailAdminClient>();
 builder.Services.AddHttpClient();
 

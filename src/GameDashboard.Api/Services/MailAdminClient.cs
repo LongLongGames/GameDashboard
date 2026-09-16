@@ -6,7 +6,7 @@ namespace GameDashboard.Api.Services;
 /// <summary>
 /// 对接 LongLongGames Mail Admin API（X-Admin-Api-Key）。AOT 友好：不用 Dictionary/匿名类型反射序列化。
 /// </summary>
-public sealed class MailAdminClient(IHttpClientFactory http, IConfiguration config, ILogger<MailAdminClient> log)
+public sealed class MailAdminClient(IHttpClientFactory http, IConfiguration config, ILogger<MailAdminClient> log, GameCatalog catalog)
 {
     string BaseUrl => (config["Mail:BaseUrl"] ?? "http://localhost:12081").TrimEnd('/');
     string AdminKey => config["Mail:AdminApiKey"] ?? "";
@@ -198,44 +198,12 @@ public sealed class MailAdminClient(IHttpClientFactory http, IConfiguration conf
     }
 
     public List<ItemCatalogEntry> GetItemCatalog(string gameId)
-    {
-        var section = config.GetSection($"Mail:ItemCatalog:{gameId}");
-        if (!section.Exists())
-            section = config.GetSection("Mail:ItemCatalog:match3");
-
-        var list = new List<ItemCatalogEntry>();
-        foreach (var child in section.GetChildren())
-        {
-            var id = child["Id"] ?? child["itemId"] ?? child.Key;
-            var name = child["Name"] ?? child["name"] ?? id;
-            var icon = child["Icon"] ?? child["icon"];
-            if (string.IsNullOrWhiteSpace(id)) continue;
-            list.Add(new ItemCatalogEntry(id.Trim(), name!.Trim(), icon));
-        }
-
-        if (list.Count == 0)
-        {
-            list.AddRange([
-                new("1", "锤子", "item_hammer"),
-                new("2", "横消", "item_rocket_h"),
-                new("3", "竖消", "item_rocket_v"),
-                new("4", "九宫格炸弹", "item_flower_5col"),
-                new("5", "洗牌", "item_score_20"),
-                new("6", "加五步", "item_steps_3"),
-                new("7", "金币", "item_gold"),
-                new("8", "体力", "item_energy_10"),
-                new("9", "钻石", "item_diamond"),
-            ]);
-        }
-        return list;
-    }
+        => catalog.ToCatalogEntries(gameId).ToList();
 
     public bool IsKnownItem(string gameId, string itemId)
-    {
-        var cat = GetItemCatalog(gameId);
-        return cat.Any(x => string.Equals(x.Id, itemId, StringComparison.OrdinalIgnoreCase));
-    }
+        => catalog.IsKnownItem(gameId, itemId);
 }
+
 
 public record MailAttachmentDto(string ItemId, int Count);
 public record ItemCatalogEntry(string Id, string Name, string? Icon);
