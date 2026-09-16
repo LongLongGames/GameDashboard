@@ -25,4 +25,8 @@
     <EmbeddedResource Include="Infrastructure/Db/Scripts/*.sql" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Config\" />
+  </ItemGroup>
+
 </Project>
