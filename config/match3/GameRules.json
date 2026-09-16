@@ -1,0 +1,1 @@
+﻿[{"Id":1,"EnergyMax":30,"EnergyCostPerPlay":5,"EnergyRegenSeconds":300,"LevelsPerMap":10,"MapUnlockClearCount":5,"GoldPerStar":50,"MinStarsToUnlockNextLevel":1,"ValidateLevelExists":true,"ValidateStepsAgainstConfig":true,"Desc":"默认规则：体力上限30，每局扣1，每300秒回1；每图10关，通关5关解锁下一图；金币=50×星；上一关≥1星可打下一关"}]
